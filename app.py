@@ -49,10 +49,60 @@ def create_app():
 
     db.init_app(app)
     
-    # Initialize database tables
+    # Initialize database tables and create default data
     try:
         with app.app_context():
             db.create_all()
+            
+            # Auto-create default users if database is empty (important for Vercel /tmp)
+            if User.query.count() == 0:
+                app.logger.info("Empty database detected, creating default users...")
+                
+                # Create default categories
+                default_categories = [
+                    Category(name='Produksi', color='primary', icon='bi-gear-fill', is_active=True),
+                    Category(name='Quality Check', color='success', icon='bi-check-circle-fill', is_active=True),
+                    Category(name='Maintenance', color='warning', icon='bi-tools', is_active=True),
+                    Category(name='Meeting', color='info', icon='bi-people-fill', is_active=True),
+                    Category(name='Training', color='secondary', icon='bi-book-fill', is_active=True),
+                    Category(name='Problem', color='danger', icon='bi-exclamation-triangle-fill', is_active=True),
+                ]
+                for cat in default_categories:
+                    db.session.add(cat)
+                
+                # Create admin user
+                admin = User(
+                    name='Administrator',
+                    employee_id='admin',
+                    department='IT',
+                    section='System',
+                    job='Admin',
+                    shift='Day',
+                    is_admin=True
+                )
+                admin.set_password('admin123')
+                db.session.add(admin)
+                
+                # Create demo users
+                demo_users = [
+                    {'name': 'John Doe', 'id': '344', 'dept': 'Production', 'section': 'Assembly', 'job': 'Operator', 'shift': 'Morning'},
+                    {'name': 'Jane Smith', 'id': '368', 'dept': 'Quality', 'section': 'QC', 'job': 'Inspector', 'shift': 'Afternoon'},
+                ]
+                for u in demo_users:
+                    user = User(
+                        name=u['name'],
+                        employee_id=u['id'],
+                        department=u['dept'],
+                        section=u['section'],
+                        job=u['job'],
+                        shift=u['shift']
+                    )
+                    user.set_password('zzz')
+                    db.session.add(user)
+                
+                db.session.commit()
+                app.logger.info("Default users and categories created successfully!")
+            
             # Lightweight schema fix-up for chat_message.recipient_id if db existed before update
             inspector = db.inspect(db.engine)
             if 'chat_message' in inspector.get_table_names():
