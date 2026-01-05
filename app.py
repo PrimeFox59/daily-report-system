@@ -17,19 +17,28 @@ def create_app():
     app = Flask(__name__, template_folder='templates', static_folder='static')
     app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-me-for-production')
     
-    # Detect if running on Vercel (serverless) - use /tmp for writable storage
-    is_vercel = os.getenv('VERCEL') or os.getenv('VERCEL_ENV')
+    # Check if DATABASE_URL is set (for Neon PostgreSQL)
+    database_url = os.getenv('DATABASE_URL')
     
-    if is_vercel:
-        # Vercel: use /tmp (temporary, will reset on cold start)
-        db_path = '/tmp/app.db'
-        upload_folder = '/tmp/uploads/chat'
+    if database_url:
+        # Use PostgreSQL from environment variable (Neon)
+        app.config['SQLALCHEMY_DATABASE_URI'] = database_url
+        upload_folder = '/tmp/uploads/chat'  # Use /tmp for serverless
     else:
-        # Local: use instance folder
-        db_path = 'sqlite:///app.db'
-        upload_folder = os.path.join(app.static_folder, 'uploads', 'chat')
+        # Detect if running on Vercel (serverless) - use /tmp for writable storage
+        is_vercel = os.getenv('VERCEL') or os.getenv('VERCEL_ENV')
+        
+        if is_vercel:
+            # Vercel: use /tmp (temporary, will reset on cold start)
+            db_path = '/tmp/app.db'
+            upload_folder = '/tmp/uploads/chat'
+        else:
+            # Local: use instance folder
+            db_path = 'sqlite:///app.db'
+            upload_folder = os.path.join(app.static_folder, 'uploads', 'chat')
+        
+        app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}' if is_vercel else db_path
     
-    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}' if is_vercel else db_path
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_size': 20,
