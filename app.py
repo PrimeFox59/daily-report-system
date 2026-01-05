@@ -15,8 +15,21 @@ import openpyxl
 
 def create_app():
     app = Flask(__name__, template_folder='templates', static_folder='static')
-    app.config['SECRET_KEY'] = 'change-me-for-production'
-    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///app.db'
+    app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'change-me-for-production')
+    
+    # Detect if running on Vercel (serverless) - use /tmp for writable storage
+    is_vercel = os.getenv('VERCEL') or os.getenv('VERCEL_ENV')
+    
+    if is_vercel:
+        # Vercel: use /tmp (temporary, will reset on cold start)
+        db_path = '/tmp/app.db'
+        upload_folder = '/tmp/uploads/chat'
+    else:
+        # Local: use instance folder
+        db_path = 'sqlite:///app.db'
+        upload_folder = os.path.join(app.static_folder, 'uploads', 'chat')
+    
+    app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}' if is_vercel else db_path
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
     app.config['SQLALCHEMY_ENGINE_OPTIONS'] = {
         'pool_size': 20,
@@ -24,20 +37,32 @@ def create_app():
         'pool_pre_ping': True,
         'max_overflow': 30
     }
-    app.config['CHAT_UPLOAD_FOLDER'] = os.path.join(app.static_folder, 'uploads', 'chat')
-    os.makedirs(app.config['CHAT_UPLOAD_FOLDER'], exist_ok=True)
+    app.config['CHAT_UPLOAD_FOLDER'] = upload_folder
+    
+    # Create upload folder (only works in /tmp on Vercel)
+    try:
+        os.makedirs(app.config['CHAT_UPLOAD_FOLDER'], exist_ok=True)
+    except OSError:
+        # Fallback to /tmp if static folder is read-only
+        app.config['CHAT_UPLOAD_FOLDER'] = '/tmp/uploads/chat'
+        os.makedirs(app.config['CHAT_UPLOAD_FOLDER'], exist_ok=True)
 
     db.init_app(app)
-    # Ensure tables (including new audit_log) exist without separate migration step
-    with app.app_context():
-        db.create_all()
-        # Lightweight schema fix-up for chat_message.recipient_id if db existed before update
-        inspector = db.inspect(db.engine)
-        if 'chat_message' in inspector.get_table_names():
-            cols = [c['name'] for c in inspector.get_columns('chat_message')]
-            if 'recipient_id' not in cols:
-                with db.engine.begin() as conn:
-                    conn.execute(text('ALTER TABLE chat_message ADD COLUMN recipient_id INTEGER'))
+    
+    # Initialize database tables
+    try:
+        with app.app_context():
+            db.create_all()
+            # Lightweight schema fix-up for chat_message.recipient_id if db existed before update
+            inspector = db.inspect(db.engine)
+            if 'chat_message' in inspector.get_table_names():
+                cols = [c['name'] for c in inspector.get_columns('chat_message')]
+                if 'recipient_id' not in cols:
+                    with db.engine.begin() as conn:
+                        conn.execute(text('ALTER TABLE chat_message ADD COLUMN recipient_id INTEGER'))
+    except Exception as e:
+        app.logger.error(f"Database initialization error: {e}")
+        # Continue anyway - will fail on first database access but at least app loads
 
     login_manager = LoginManager()
     login_manager.login_view = 'login'
@@ -1317,3 +1342,4 @@ if __name__ == '__main__':
     # Port 8000 is only for local dev, not used in Vercel
     debug_mode = os.getenv('FLASK_DEBUG') == '1'
     app.run(debug=debug_mode, host=os.getenv('HOST', '0.0.0.0'), port=int(os.getenv('PORT', '8000')))
+
