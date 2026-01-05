@@ -1,0 +1,145 @@
+{% extends 'base.html' %}
+{% block title %}Edit User - {{ user.name }} - Daily Report System{% endblock %}
+{% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <nav aria-label="breadcrumb">
+      <ol class="breadcrumb">
+        <li class="breadcrumb-item"><a href="{{ url_for('admin_users') }}">User Management</a></li>
+        <li class="breadcrumb-item active">Edit User</li>
+      </ol>
+    </nav>
+    <h1 class="display-6"><i class="bi bi-pencil-square"></i> Edit User</h1>
+    <p class="text-muted">Update user information and settings</p>
+  </div>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">
+          <i class="bi bi-person-badge"></i> {{ user.name }}
+          {% if user.is_admin %}
+            <span class="badge bg-warning text-dark">Admin</span>
+          {% endif %}
+        </h5>
+      </div>
+      <div class="card-body">
+        <form method="post">
+          {{ form.hidden_tag() }}
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.name.label }}</label>
+              {{ form.name(class="form-control") }}
+              {% if form.name.errors %}
+                <div class="text-danger">
+                  {% for error in form.name.errors %}
+                    <small>{{ error }}</small>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.employee_id.label }}</label>
+              {{ form.employee_id(class="form-control") }}
+              {% if form.employee_id.errors %}
+                <div class="text-danger">
+                  {% for error in form.employee_id.errors %}
+                    <small>{{ error }}</small>
+                  {% endfor %}
+                </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.department.label }}</label>
+              {{ form.department(class="form-control") }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.section.label }}</label>
+              {{ form.section(class="form-control") }}
+            </div>
+          </div>
+
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.job.label }}</label>
+              {{ form.job(class="form-control") }}
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.shift.label }}</label>
+              {{ form.shift(class="form-select") }}
+            </div>
+          </div>
+
+          <hr class="my-4">
+          
+          <h6 class="mb-3"><i class="bi bi-shield-lock"></i> Security & Role</h6>
+          
+          <div class="row mb-3">
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.new_password.label }}</label>
+              {{ form.new_password(class="form-control", placeholder="Leave blank to keep current password") }}
+              <small class="text-muted">Only enter a password if you want to change it</small>
+            </div>
+            <div class="col-md-6">
+              <label class="form-label fw-bold">{{ form.is_admin.label }}</label>
+              {{ form.is_admin(class="form-select") }}
+              <small class="text-muted">Admin can access all features</small>
+            </div>
+          </div>
+
+          <hr class="my-4">
+
+          <div class="d-flex justify-content-between">
+            <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">
+              <i class="bi bi-arrow-left"></i> Back to Users
+            </a>
+            <div>
+              <button type="submit" class="btn btn-success btn-lg">
+                <i class="bi bi-check-circle"></i> {{ form.submit.label.text }}
+              </button>
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- User Statistics Card -->
+    <div class="card shadow mt-4">
+      <div class="card-body">
+        <h6 class="mb-3"><i class="bi bi-bar-chart"></i> User Statistics</h6>
+        <div class="row">
+          <div class="col-md-4">
+            <div class="text-center p-3 bg-light rounded">
+              <h3 class="text-primary">{{ user.reports|length }}</h3>
+              <small class="text-muted">Total Reports</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center p-3 bg-light rounded">
+              <h3 class="text-success">{{ user.created_at.strftime('%d/%m/%Y') }}</h3>
+              <small class="text-muted">Joined Date</small>
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-center p-3 bg-light rounded">
+              {% if user.id == current_user.id %}
+                <h3 class="text-info">Current User</h3>
+              {% else %}
+                <h3 class="text-secondary">User #{{ user.id }}</h3>
+              {% endif %}
+              <small class="text-muted">Status</small>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}

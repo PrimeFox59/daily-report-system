@@ -1,0 +1,91 @@
+{% extends 'base.html' %}
+{% block title %}Audit Log - Daily Report System{% endblock %}
+{% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="display-6"><i class="bi bi-clipboard-check"></i> Audit Log</h1>
+    <p class="text-muted">Catatan aktivitas login, edit, delete, input report, ganti password, dan lainnya.</p>
+  </div>
+</div>
+
+<div class="card shadow mb-3">
+  <div class="card-body">
+    <form class="row g-3 align-items-end" method="get" action="{{ url_for('audit_log') }}">
+      <div class="col-md-3">
+        <label class="form-label"><i class="bi bi-calendar-event"></i> Start Date</label>
+        <input type="date" class="form-control" name="start_date" value="{{ start_date }}">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label"><i class="bi bi-calendar-event-fill"></i> End Date</label>
+        <input type="date" class="form-control" name="end_date" value="{{ end_date }}">
+      </div>
+      {% if is_admin %}
+      <div class="col-md-3">
+        <label class="form-label"><i class="bi bi-person"></i> User</label>
+        <select class="form-select" name="user_id">
+          <option value="">All Users</option>
+          {% for u in users %}
+          <option value="{{ u.id }}" {% if filter_user_id == u.id %}selected{% endif %}>{{ u.name }} ({{ u.employee_id }})</option>
+          {% endfor %}
+        </select>
+      </div>
+      {% else %}
+      <input type="hidden" name="user_id" value="{{ filter_user_id }}">
+      {% endif %}
+      <div class="col-md-3 d-flex gap-2">
+        <button class="btn btn-primary w-100" type="submit"><i class="bi bi-check2-circle"></i> Apply</button>
+        <a class="btn btn-outline-secondary w-100" href="{{ url_for('audit_log') }}"><i class="bi bi-x-circle"></i> Reset</a>
+      </div>
+    </form>
+    <div class="mt-2 text-muted"><small>Range: {{ date_range_label }} (WIB)</small></div>
+  </div>
+</div>
+
+<div class="card shadow">
+  <div class="card-header bg-white d-flex justify-content-between align-items-center">
+    <h5 class="mb-0"><i class="bi bi-journal-text"></i> Log Entries</h5>
+    <span class="badge bg-light text-dark border">{{ logs|length }} entries</span>
+  </div>
+  <div class="card-body p-0">
+    {% if logs %}
+    <div class="table-responsive">
+      <table class="table table-hover mb-0">
+        <thead class="table-light">
+          <tr>
+            <th style="width: 160px;">Time (WIB)</th>
+            <th>User</th>
+            <th>Actor</th>
+            <th>Action</th>
+            <th>Detail</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for log in logs %}
+          <tr>
+            <td><small class="text-muted">{{ log.created_at|gmt7|strftime('%d/%m/%y %H:%M') }}</small></td>
+            <td>
+              <strong>{{ log.user.name if log.user else 'User #' ~ (log.user_id or '-') }}</strong>
+              {% if log.user and log.user.employee_id %}<div class="text-muted small">{{ log.user.employee_id }}</div>{% endif %}
+            </td>
+            <td>
+              {% if log.actor %}
+                <span class="badge bg-secondary">{{ log.actor.name }}</span>
+              {% else %}
+                <span class="text-muted small">-</span>
+              {% endif %}
+            </td>
+            <td><span class="badge bg-primary">{{ log.action }}</span></td>
+            <td><small class="text-muted">{{ log.detail or '-' }}</small></td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+      <div class="p-4 text-center text-muted">
+        <i class="bi bi-info-circle"></i> No log entries found for this range/filter.
+      </div>
+    {% endif %}
+  </div>
+</div>
+{% endblock %}

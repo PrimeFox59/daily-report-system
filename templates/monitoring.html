@@ -1,0 +1,1274 @@
+{% extends 'base.html' %}
+{% block title %}Monitoring Performance - Daily Report System{% endblock %}
+{% block content %}
+<style>
+.favorite-btn {
+  border: 1px solid #ffc107 !important;
+  background: transparent !important;
+  color: #ffc107 !important;
+  cursor: pointer;
+  padding: 4px 8px !important;
+  transition: all 0.2s;
+  line-height: 1;
+}
+.favorite-btn:hover {
+  transform: scale(1.15);
+  background: #fff3cd !important;
+  box-shadow: 0 0 8px rgba(255, 193, 7, 0.5);
+}
+.favorite-btn i {
+  font-size: 1rem;
+}
+.user-item {
+  transition: all 0.2s;
+}
+.user-item:hover {
+  background-color: #f8f9fa;
+}
+.summary-grid canvas {
+  width: 100% !important;
+  max-height: 200px;
+  min-height: 180px;
+}
+.summary-grid h6 {
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+.summary-grid .card {
+  transition: all 0.3s ease;
+  border-radius: 12px;
+}
+.summary-grid .card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 8px 25px rgba(0,0,0,0.15) !important;
+}
+.form-control:focus, .form-select:focus {
+  border-color: #667eea;
+  box-shadow: 0 0 0 0.2rem rgba(102, 126, 234, 0.25);
+}
+.report-row:hover {
+  background-color: #f8f9fa !important;
+  transform: scale(1.01);
+}
+.table thead th {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: #495057;
+}
+.card {
+  transition: all 0.3s ease;
+}
+</style>
+</style>
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="display-6"><i class="bi bi-graph-up-arrow"></i> Monitoring Performance</h1>
+    <p class="text-muted">Monitor user performance and activity statistics</p>
+  </div>
+</div>
+
+
+<!-- Summary All Users Section -->
+<div class="row mb-4">
+  <div class="col-12">
+    <div class="card shadow-lg border-0" style="overflow: hidden;">
+      <div class="card-header text-white p-0" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+        <div class="p-4">
+          <div class="d-flex align-items-center justify-content-between">
+            <div>
+              <h4 class="mb-1"><i class="bi bi-bar-chart-fill"></i> Summary All Users</h4>
+              <p class="mb-0 opacity-90" style="font-size: 0.9rem;">Comprehensive analytics across all team members</p>
+            </div>
+            <div class="text-end">
+              <div class="badge bg-white bg-opacity-25 px-3 py-2" style="font-size: 0.95rem;">
+                <i class="bi bi-people-fill"></i> {{ total_users }} Users
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body p-4" style="background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);">
+        <!-- Filters Section -->
+        <div class="row g-3 mb-4">
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label fw-semibold" style="font-size: 0.875rem;">
+              <i class="bi bi-calendar-range text-primary"></i> Start Date
+            </label>
+            <input type="date" class="form-control form-control-sm" id="allUsersStartDate" 
+                   value="{{ request.args.get('all_start_date', all_start_date) }}">
+          </div>
+          <div class="col-lg-3 col-md-6">
+            <label class="form-label fw-semibold" style="font-size: 0.875rem;">
+              <i class="bi bi-calendar-check text-primary"></i> End Date
+            </label>
+            <input type="date" class="form-control form-control-sm" id="allUsersEndDate" 
+                   value="{{ request.args.get('all_end_date', all_end_date) }}">
+          </div>
+          <div class="col-lg-4 col-md-6">
+            <label class="form-label fw-semibold" style="font-size: 0.875rem;">
+              <i class="bi bi-box-seam text-primary"></i> Filter by Item
+            </label>
+            <select class="form-select form-select-sm" id="allUsersItemFilter">
+              <option value="">All Items</option>
+              {% for item in all_items %}
+              <option value="{{ item }}" {% if request.args.get('filter_item') == item %}selected{% endif %}>{{ item }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="col-lg-2 col-md-6 d-flex align-items-end">
+            <button class="btn btn-primary btn-sm w-100" onclick="applyAllUsersFilter()" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+              <i class="bi bi-funnel-fill"></i> Apply Filter
+            </button>
+          </div>
+        </div>
+        
+        <!-- Active Filters Display -->
+        {% if request.args.get('filter_item') or request.args.get('all_start_date') or request.args.get('all_end_date') %}
+        <div class="alert alert-info alert-dismissible fade show d-flex align-items-center mb-4" role="alert" style="border-left: 4px solid #0dcaf0;">
+          <i class="bi bi-info-circle-fill me-2"></i>
+          <div class="flex-grow-1">
+            <strong>Active Filters:</strong>
+            {% if request.args.get('filter_item') %}
+              <span class="badge bg-primary ms-2">Item: {{ request.args.get('filter_item') }}</span>
+            {% endif %}
+            {% if request.args.get('all_start_date') and request.args.get('all_end_date') %}
+              <span class="badge bg-success ms-2">Period: {{ request.args.get('all_start_date') }} to {{ request.args.get('all_end_date') }}</span>
+            {% endif %}
+          </div>
+          <a href="{{ url_for('monitoring') }}" class="btn btn-sm btn-outline-info">
+            <i class="bi bi-x-circle"></i> Clear All
+          </a>
+        </div>
+        {% endif %}
+        
+        <!-- Charts Grid -->
+        <div class="row g-4 summary-grid">
+          <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%);">
+              <div class="card-body">
+                <h6 class="mb-3 fw-bold text-primary">
+                  <i class="bi bi-pie-chart-fill"></i> Category Distribution
+                </h6>
+                <canvas id="allUsersCategoryPie" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb15 0%, #f5576c15 100%);">
+              <div class="card-body">
+                <h6 class="mb-3 fw-bold text-danger">
+                  <i class="bi bi-box-seam-fill"></i> Top Items Worked On
+                </h6>
+                {% if all_users_item_names %}
+                  <canvas id="allUsersItemPie" height="200"></canvas>
+                {% else %}
+                  <div class="alert alert-light mb-0 text-center d-flex align-items-center justify-content-center" style="min-height: 200px;">
+                    <small class="text-muted"><i class="bi bi-inbox"></i> No items recorded yet</small>
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe15 0%, #00f2fe15 100%);">
+              <div class="card-body">
+                <h6 class="mb-3 fw-bold text-info">
+                  <i class="bi bi-people-fill"></i> Top 10 Users
+                </h6>
+                <canvas id="allUsersBar" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+          <div class="col-xl-3 col-lg-6 col-md-6">
+            <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #43e97b15 0%, #38f9d715 100%);">
+              <div class="card-body">
+                <h6 class="mb-3 fw-bold text-success">
+                  <i class="bi bi-graph-up-arrow"></i> Timeline (Stacked)
+                </h6>
+                <canvas id="allUsersTimelineStacked" height="200"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row">
+  <!-- Left Column: User List -->
+  <div class="col-lg-4">
+    <div class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h5 class="mb-0"><i class="bi bi-people"></i> Select User</h5>
+      </div>
+      <div class="card-body p-0">
+        <div class="p-3 border-bottom bg-light">
+          <div class="input-group input-group-sm">
+            <span class="input-group-text"><i class="bi bi-search"></i></span>
+            <input type="text" class="form-control" id="searchUser" placeholder="Search by name or ID...">
+          </div>
+        </div>
+        <div class="user-list-container" style="max-height: 600px; overflow-y: auto;">
+          <div class="list-group list-group-flush" id="userList">
+            {% for user in all_users %}
+            <div class="list-group-item list-group-item-action user-item {{ 'active' if selected_user and selected_user.id == user.id else '' }}"
+               data-name="{{ user.name.lower() }}"
+               data-employee-id="{{ user.employee_id.lower() }}"
+               data-dept="{{ user.department.lower() if user.department else '' }}"
+               data-user-id="{{ user.id }}"
+               data-url="{{ url_for('monitoring', user_id=user.id) }}"
+               style="cursor: pointer;">
+              <div class="d-flex w-100 justify-content-between align-items-start">
+                <div class="flex-grow-1">
+                  <h6 class="mb-1 small">
+                    <i class="bi bi-person-circle"></i> {{ user.name }}
+                    {% if user.is_admin %}
+                      <span class="badge bg-warning text-dark" style="font-size: 0.65rem;">Admin</span>
+                    {% endif %}
+                    {% if user.is_favorite %}
+                      <i class="bi bi-star-fill text-warning" title="Favorite"></i>
+                    {% endif %}
+                  </h6>
+                  <div>
+                    <small class="text-primary"><strong>ID: {{ user.employee_id }}</strong></small>
+                  </div>
+                  <div>
+                    <small class="text-muted">{{ user.department }}</small>
+                    {% if user.section %}
+                    <small class="text-muted"> - {{ user.section }}</small>
+                    {% endif %}
+                  </div>
+                </div>
+                <div class="ms-2 d-flex align-items-center gap-2">
+                  <button class="btn btn-sm btn-outline-warning favorite-btn" 
+                          type="button"
+                          data-user-id="{{ user.id }}"
+                          data-is-favorite="{{ 'true' if user.is_favorite else 'false' }}"
+                          onclick="toggleFavorite(event, {{ user.id }})"
+                          title="{{ 'Remove from favorites' if user.is_favorite else 'Add to favorites' }}">
+                    <i class="bi bi-star{{ '-fill' if user.is_favorite else '' }}"></i>
+                  </button>
+                  <span class="badge bg-primary">{{ user.reports|length }}</span>
+                </div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+          <div id="noResults" class="p-3 text-center text-muted" style="display: none;">
+            <i class="bi bi-search"></i> No users found
+          </div>
+        </div>
+      </div>
+      <div class="card-footer bg-light text-center">
+        <small class="text-muted">
+          <i class="bi bi-info-circle"></i> {{ all_users|length }} total users
+        </small>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right Column: User Performance Detail -->
+  <div class="col-lg-8">
+    {% if user_stats %}
+    <div class="card shadow-lg border-0 mb-3" style="overflow: hidden;">
+      <div class="card-header text-white p-0" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
+        <div class="p-4">
+          <div class="d-flex justify-content-between align-items-start">
+            <div class="flex-grow-1">
+              <h4 class="mb-2 d-flex align-items-center gap-2">
+                <i class="bi bi-person-badge-fill"></i> 
+                <span>{{ user_stats.user.name }}</span>
+                {% if user_stats.user.is_admin %}
+                  <span class="badge bg-warning text-dark" style="font-size: 0.75rem;">Admin</span>
+                {% endif %}
+              </h4>
+              <div class="d-flex flex-wrap gap-3 opacity-90" style="font-size: 0.875rem;">
+                <span><i class="bi bi-hash"></i> ID: {{ user_stats.user.employee_id }}</span>
+                <span><i class="bi bi-building"></i> {{ user_stats.user.department }}</span>
+                <span><i class="bi bi-diagram-3"></i> {{ user_stats.user.section }}</span>
+                <span><i class="bi bi-briefcase"></i> {{ user_stats.user.job }}</span>
+                <span><i class="bi bi-clock-history"></i> Shift: {{ user_stats.user.shift }}</span>
+              </div>
+            </div>
+            <div class="text-end">
+              <div class="badge bg-white bg-opacity-25 px-3 py-2" style="font-size: 1.1rem;">
+                <i class="bi bi-file-earmark-text-fill"></i> {{ user_stats.total_reports }}
+              </div>
+              <div class="small mt-1 opacity-90">Total Reports</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="card-body p-4" style="background: linear-gradient(to bottom, #f8f9fa 0%, #ffffff 100%);">
+        <!-- Filters -->
+        <div class="mb-4">
+          <div class="row g-3 align-items-end">
+            <div class="col-lg-4 col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 0.875rem;">
+                <i class="bi bi-box-seam text-success"></i> Filter by Item
+              </label>
+              <select class="form-select form-select-sm" id="itemFilter" onchange="applyItemFilter()">
+                <option value="">All Items</option>
+                {% for item in all_items %}
+                <option value="{{ item }}" {% if request.args.get('item') == item %}selected{% endif %}>{{ item }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 0.875rem;">
+                <i class="bi bi-calendar-range text-success"></i> Start Date
+              </label>
+              <input type="date" class="form-control form-control-sm" id="startDate" value="{{ user_stats.start_date_local }}">
+            </div>
+            <div class="col-lg-3 col-md-6">
+              <label class="form-label fw-semibold" style="font-size: 0.875rem;">
+                <i class="bi bi-calendar-check text-success"></i> End Date
+              </label>
+              <input type="date" class="form-control form-control-sm" id="endDate" value="{{ user_stats.end_date_local }}">
+            </div>
+            <div class="col-lg-2 col-md-6">
+              <button class="btn btn-success btn-sm w-100 mb-1" type="button" onclick="applyDateRange()" style="background: linear-gradient(135deg, #10b981 0%, #059669 100%); border: none;">
+                <i class="bi bi-funnel-fill"></i> Apply
+              </button>
+              <button class="btn btn-outline-secondary btn-sm w-100" type="button" onclick="clearDateRange()">
+                <i class="bi bi-arrow-counterclockwise"></i> Reset
+              </button>
+            </div>
+          </div>
+          <small class="text-muted d-block mt-2">
+            <i class="bi bi-info-circle"></i> Range applies to all charts and reports below
+          </small>
+        </div>
+
+        <!-- Charts Grid -->
+        <div class="row g-3 mb-4">
+          <!-- Category Distribution -->
+          <div class="col-lg-6">
+            <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #667eea15 0%, #764ba215 100%); border-radius: 12px;">
+              <div class="card-body p-3">
+                <h6 class="mb-3 fw-bold text-primary d-flex align-items-center gap-2">
+                  <i class="bi bi-pie-chart-fill"></i>
+                  <span>Category Distribution</span>
+                </h6>
+                <canvas id="categoryPieChart" height="220"></canvas>
+              </div>
+            </div>
+          </div>
+
+          <!-- Item Contribution -->
+          <div class="col-lg-6">
+            <div class="card h-100 border-0 shadow-sm" style="background: linear-gradient(135deg, #f093fb15 0%, #f5576c15 100%); border-radius: 12px;">
+              <div class="card-body p-3">
+                <h6 class="mb-3 fw-bold text-danger d-flex align-items-center gap-2">
+                  <i class="bi bi-diagram-3-fill"></i>
+                  <span>Item Contribution (Worked On)</span>
+                </h6>
+                {% if user_stats.item_labels %}
+                  <div class="row g-2 align-items-center">
+                    <div class="col-6">
+                      <canvas id="itemDonutChart" height="180"></canvas>
+                    </div>
+                    <div class="col-6">
+                      <div style="max-height: 200px; overflow-y: auto; scrollbar-width: thin;">
+                        {% for idx in range(user_stats.item_labels|length) %}
+                        <div class="d-flex justify-content-between align-items-center py-2 px-2 mb-1 rounded" style="background: rgba(255,255,255,0.7);">
+                          <span class="text-truncate small fw-medium">
+                            <i class="bi bi-box-seam"></i> {{ user_stats.item_labels[idx] }}
+                          </span>
+                          <span class="badge bg-gradient" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">{{ user_stats.item_counts[idx] }}</span>
+                        </div>
+                        {% endfor %}
+                      </div>
+                    </div>
+                  </div>
+                {% else %}
+                  <div class="alert alert-light border-0 mb-0 text-center" style="background: rgba(255,255,255,0.5);">
+                    <i class="bi bi-inbox"></i> No items recorded yet
+                  </div>
+                {% endif %}
+              </div>
+            </div>
+          </div>
+
+          <!-- Timeline Chart -->
+          <div class="col-12">
+            <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #4facfe15 0%, #00f2fe15 100%); border-radius: 12px;">
+              <div class="card-body p-3">
+                <h6 class="mb-3 fw-bold text-info d-flex align-items-center gap-2">
+                  <i class="bi bi-graph-up-arrow"></i>
+                  <span>Report Timeline</span>
+                  <span class="badge bg-light text-dark border ms-auto">{{ user_stats.date_range_label }}</span>
+                </h6>
+                <canvas id="timelineStackedChart" height="160"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recent Items -->
+        <div class="mb-4">
+          <div class="card border-0 shadow-sm" style="background: linear-gradient(135deg, #43e97b15 0%, #38f9d715 100%); border-radius: 12px;">
+            <div class="card-body p-3">
+              <h6 class="mb-3 fw-bold text-success d-flex align-items-center gap-2">
+                <i class="bi bi-tags-fill"></i> Recent Items Worked On
+              </h6>
+              {% if user_stats.recent_items %}
+                <div class="d-flex flex-wrap gap-2">
+                  {% for item in user_stats.recent_items %}
+                  <span class="badge rounded-pill px-3 py-2" style="background: linear-gradient(135deg, #43e97b 0%, #38f9d7 100%); font-size: 0.875rem;">
+                    <i class="bi bi-box-seam"></i> {{ item }}
+                  </span>
+                  {% endfor %}
+                </div>
+              {% else %}
+                <div class="alert alert-light border-0 mb-0" style="background: rgba(255,255,255,0.5);">
+                  <i class="bi bi-info-circle"></i> No items recorded yet
+                </div>
+              {% endif %}
+            </div>
+          </div>
+        </div>
+
+        <!-- All Reports Table -->
+        <div class="card border-0 shadow-sm" style="border-radius: 12px; overflow: hidden;">
+          <div class="card-header" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border: none;">
+            <h6 class="mb-0 text-white d-flex align-items-center gap-2">
+              <i class="bi bi-journal-text"></i> 
+              <span>All Reports</span>
+              <span class="badge bg-white bg-opacity-25 ms-auto">{{ user_stats.date_range_label }}</span>
+            </h6>
+          </div>
+          <div class="card-body p-0">
+            {% set _cat_map = {} %}
+            {% for _cat in categories %}
+              {% set __ = _cat_map.update({_cat.name: _cat.color}) %}
+            {% endfor %}
+            {% if user_stats.all_reports %}
+            <div class="table-responsive">
+              <table class="table table-hover table-sm mb-0">
+                <thead style="background: #f8f9fa; position: sticky; top: 0; z-index: 10;">
+                  <tr>
+                    <th class="py-3"><i class="bi bi-clock"></i> Time</th>
+                    <th class="py-3"><i class="bi bi-tag"></i> Category</th>
+                    <th class="py-3"><i class="bi bi-card-heading"></i> Title</th>
+                    <th class="py-3"><i class="bi bi-chat-left-text"></i> Notes</th>
+                    <th class="py-3"><i class="bi bi-calendar3"></i> Date</th>
+                  </tr>
+                </thead>
+                <tbody id="monitoring-reports-tbody">
+                  {% for r in user_stats.all_reports %}
+                  <tr data-report-id="{{ r.id }}" style="cursor: pointer; transition: all 0.2s;" class="report-row">
+                    <td><span class="badge bg-secondary">{{ r.time }}</span></td>
+                    <td>
+                      {% set cat_color = _cat_map.get(r.category, 'secondary') %}
+                      {% set is_hex_color = cat_color and cat_color.startswith('#') %}
+                      {% if is_hex_color %}
+                        <span class="badge text-white" style="background-color: {{ cat_color }};">{{ r.category }}</span>
+                      {% else %}
+                        <span class="badge bg-{{ cat_color }}">{{ r.category }}</span>
+                      {% endif %}
+                    </td>
+                    <td><strong>{{ r.title }}</strong></td>
+                    <td><small class="text-muted">{{ r.notes[:40] }}{% if r.notes|length > 40 %}...{% endif %}</small></td>
+                    <td><small class="text-muted">{{ r.created_at|gmt7|strftime('%d/%m/%y %H:%M') }}</small></td>
+                  </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+            {% else %}
+              <div class="p-5 text-center text-muted">
+                <i class="bi bi-inbox" style="font-size: 3rem; opacity: 0.3;"></i>
+                <p class="mt-3 mb-0">No reports found for selected period</p>
+              </div>
+            {% endif %}
+          </div>
+        </div>
+      </div>
+    </div>
+    {% else %}
+    <div class="card shadow">
+      <div class="card-body text-center py-5">
+        <i class="bi bi-arrow-left-circle" style="font-size: 3rem; color: #ccc;"></i>
+        <h5 class="mt-3 text-muted">Select a user from the list to view their performance</h5>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+</div>
+
+<style>
+/* User List Container Scrollbar */
+.user-list-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.user-list-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.user-list-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.user-list-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+/* User List Items */
+.user-item {
+  padding: 0.75rem;
+  border-left: 3px solid transparent;
+  transition: all 0.2s ease;
+}
+
+.user-item:hover {
+  background-color: #f8f9fa !important;
+  border-left-color: #0d6efd;
+}
+
+.user-item.active {
+  background-color: #0d6efd !important;
+  color: white !important;
+  border-left-color: #0a58ca;
+}
+
+.user-item.active .text-muted {
+  color: rgba(255, 255, 255, 0.8) !important;
+}
+
+.user-item.active .text-primary {
+  color: white !important;
+}
+
+.user-item.active .badge {
+  background-color: white !important;
+  color: #0d6efd !important;
+}
+
+.user-item h6 {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+</style>
+
+
+<script src="{{ url_for('static', filename='vendor/chart.umd.min.js') }}"></script>
+
+<script>
+// Bootstrap color to hex mapping
+const colorMap = {
+  'primary': '#0d6efd',
+  'success': '#198754',
+  'warning': '#ffc107',
+  'danger': '#dc3545',
+  'info': '#0dcaf0',
+  'secondary': '#6c757d'
+};
+
+const resolveColor = (val) => {
+  if (!val) return colorMap['secondary'];
+  return val.startsWith('#') ? val : (colorMap[val] || colorMap['secondary']);
+};
+
+
+// --- SUMMARY ALL USERS CHARTS ---
+const allUsersCategoryLabels = {{ categories|map(attribute='name')|list|tojson }};
+const allUsersCategoryColors = {{ categories|map(attribute='color')|list|tojson }};
+const allUsersCategoryHexColors = allUsersCategoryColors.map(resolveColor);
+const allUsersCategoryCounts = {{ all_users_category_counts.values()|list|tojson }};
+
+// Pie chart: distribusi kategori seluruh user (aggregate)
+const pieAllUsers = document.getElementById('allUsersCategoryPie').getContext('2d');
+new Chart(pieAllUsers, {
+  type: 'pie',
+  data: {
+    labels: allUsersCategoryLabels,
+    datasets: [{
+      data: allUsersCategoryCounts,
+      backgroundColor: allUsersCategoryHexColors,
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
+      }
+    }
+  }
+});
+
+// Pie chart: top items worked on by all users
+{% if all_users_item_names %}
+const allUsersItemNames = {{ all_users_item_names|tojson }};
+const allUsersItemCounts = {{ all_users_item_counts|tojson }};
+
+// Generate random colors for items
+function generateColors(count) {
+  const colors = [
+    '#FF6384', '#36A2EB', '#FFCE56', '#4BC0C0', '#9966FF',
+    '#FF9F40', '#FF6384', '#C9CBCF', '#4BC0C0', '#FF9F40'
+  ];
+  return colors.slice(0, count);
+}
+
+const pieAllUsersItems = document.getElementById('allUsersItemPie').getContext('2d');
+new Chart(pieAllUsersItems, {
+  type: 'pie',
+  data: {
+    labels: allUsersItemNames,
+    datasets: [{
+      data: allUsersItemCounts,
+      backgroundColor: generateColors(allUsersItemNames.length),
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: { 
+        position: 'bottom',
+        labels: {
+          font: { size: 10 },
+          boxWidth: 12
+        }
+      },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
+      }
+    }
+  }
+});
+{% endif %}
+
+// Bar chart: top 10 users by report count
+const allUsersReportCounts = {{ all_users_report_counts|tojson }};
+const topUsers = allUsersReportCounts.sort((a, b) => b[1] - a[1]).slice(0, 10);
+const barAllUsers = document.getElementById('allUsersBar').getContext('2d');
+new Chart(barAllUsers, {
+  type: 'bar',
+  data: {
+    labels: topUsers.map(u => u[0]),
+    datasets: [{
+      label: 'Reports',
+      data: topUsers.map(u => u[1]),
+      backgroundColor: '#0d6efd',
+      borderRadius: 6
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: {
+      legend: { display: false },
+      tooltip: { enabled: true }
+    },
+    scales: {
+      x: { grid: { display: false } },
+      y: { beginAtZero: true, ticks: { stepSize: 1 } }
+    }
+  }
+});
+
+// Timeline stacked chart: seluruh user
+const allUsersTimelineLabels = {{ all_users_timeline_dates|tojson }};
+const allUsersTimelineDatasets = [
+  {% for category in categories %}
+  {
+    label: '{{ category.name }}',
+    data: {{ all_users_timeline_series[category.name]|tojson }},
+    backgroundColor: resolveColor('{{ category.color }}'),
+    borderColor: resolveColor('{{ category.color }}'),
+    borderWidth: 1
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+const timelineAllUsers = document.getElementById('allUsersTimelineStacked').getContext('2d');
+new Chart(timelineAllUsers, {
+  type: 'bar',
+  data: {
+    labels: allUsersTimelineLabels.map(date => {
+      const d = new Date(date);
+      return `${d.getDate()}/${d.getMonth() + 1}`;
+    }),
+    datasets: allUsersTimelineDatasets
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: {
+      x: {
+        stacked: true,
+        ticks: {
+          maxRotation: 45,
+          minRotation: 45
+        }
+      },
+      y: {
+        stacked: true,
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        position: 'top'
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false
+      }
+    }
+  }
+});
+
+// --- PER USER CHARTS ---
+{% if user_stats %}
+// Pie chart for selected user category distribution
+const categoryLabels = {{ categories|map(attribute='name')|list|tojson }};
+const categoryColors = {{ categories|map(attribute='color')|list|tojson }};
+const categoryHexColors = categoryColors.map(resolveColor);
+const categoryCounts = [
+  {% for category in categories %}
+    {{ user_stats.category_counts[category.name] }}{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+const ctxPie = document.getElementById('categoryPieChart').getContext('2d');
+new Chart(ctxPie, {
+  type: 'pie',
+  data: {
+    labels: categoryLabels,
+    datasets: [{
+      data: categoryCounts,
+      backgroundColor: categoryHexColors,
+      borderWidth: 2,
+      borderColor: '#fff'
+    }]
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    plugins: {
+      legend: { position: 'bottom' },
+      tooltip: {
+        callbacks: {
+          label: function(context) {
+            const label = context.label || '';
+            const value = context.parsed;
+            const total = context.dataset.data.reduce((a, b) => a + b, 0);
+            const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+            return `${label}: ${value} (${percentage}%)`;
+          }
+        }
+      }
+    }
+  }
+});
+
+// Donut chart: item contribution (selected user)
+const itemLabels = {{ user_stats.item_labels|tojson if user_stats else '[]' }};
+const itemCounts = {{ user_stats.item_counts|tojson if user_stats else '[]' }};
+if (itemLabels.length && document.getElementById('itemDonutChart')) {
+  const itemCtx = document.getElementById('itemDonutChart').getContext('2d');
+  const palette = [
+    '#0d6efd','#198754','#ffc107','#dc3545','#20c997','#6f42c1','#fd7e14','#0dcaf0','#6c757d','#6610f2'
+  ];
+  new Chart(itemCtx, {
+    type: 'doughnut',
+    data: {
+      labels: itemLabels,
+      datasets: [{
+        data: itemCounts,
+        backgroundColor: itemLabels.map((_, idx) => palette[idx % palette.length]),
+        borderWidth: 1
+      }]
+    },
+    options: {
+      responsive: true,
+      cutout: '55%',
+      plugins: {
+        legend: { position: 'bottom' }
+      }
+    }
+  });
+}
+
+// Timeline stacked chart for selected user (last 30 days)
+const userTimelineDates = {{ user_stats.timeline_dates|tojson }};
+const userTimelineDatasets = [
+  {% for category in categories %}
+  {
+    label: '{{ category.name }}',
+    data: {{ user_stats.timeline_series[category.name]|tojson }},
+    backgroundColor: resolveColor('{{ category.color }}'),
+    borderColor: resolveColor('{{ category.color }}'),
+    borderWidth: 1
+  }{% if not loop.last %},{% endif %}
+  {% endfor %}
+];
+
+const ctxTimeline = document.getElementById('timelineStackedChart').getContext('2d');
+new Chart(ctxTimeline, {
+  type: 'bar',
+  data: {
+    labels: userTimelineDates.map(date => {
+      const d = new Date(date);
+      return `${d.getDate()}/${d.getMonth() + 1}`;
+    }),
+    datasets: userTimelineDatasets
+  },
+  options: {
+    responsive: true,
+    maintainAspectRatio: true,
+    scales: {
+      x: {
+        stacked: true,
+        ticks: {
+          maxRotation: 45,
+          minRotation: 45
+        }
+      },
+      y: {
+        stacked: true,
+        beginAtZero: true,
+        ticks: {
+          stepSize: 1
+        }
+      }
+    },
+    plugins: {
+      legend: {
+        position: 'top'
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false
+      }
+    }
+  }
+});
+{% endif %}
+
+// Filter for all users summary
+function applyAllUsersFilter() {
+  const item = document.getElementById('allUsersItemFilter').value;
+  const startDate = document.getElementById('allUsersStartDate').value;
+  const endDate = document.getElementById('allUsersEndDate').value;
+  
+  const params = [];
+  if (item) params.push(`filter_item=${encodeURIComponent(item)}`);
+  if (startDate) params.push(`all_start_date=${encodeURIComponent(startDate)}`);
+  if (endDate) params.push(`all_end_date=${encodeURIComponent(endDate)}`);
+  
+  const url = params.length ? `/monitoring?${params.join('&')}` : '/monitoring';
+  window.location.href = url;
+}
+
+// Item filter for per-user view
+function applyItemFilter() {
+  const item = document.getElementById('itemFilter').value;
+  const userId = {{ selected_user.id if selected_user else 'null' }};
+  const startDate = document.getElementById('startDate') ? document.getElementById('startDate').value : '';
+  const endDate = document.getElementById('endDate') ? document.getElementById('endDate').value : '';
+  if (userId) {
+    const params = [];
+    if (item) params.push(`item=${encodeURIComponent(item)}`);
+    if (startDate) params.push(`start_date=${encodeURIComponent(startDate)}`);
+    if (endDate) params.push(`end_date=${encodeURIComponent(endDate)}`);
+    const qs = params.length ? `?${params.join('&')}` : '';
+    window.location.href = `/monitoring/${userId}${qs}`;
+  }
+}
+
+function applyDateRange() {
+  const userId = {{ selected_user.id if selected_user else 'null' }};
+  if (!userId) return;
+  const item = document.getElementById('itemFilter').value;
+  const startDate = document.getElementById('startDate').value;
+  const endDate = document.getElementById('endDate').value;
+  const params = [];
+  if (item) params.push(`item=${encodeURIComponent(item)}`);
+  if (startDate) params.push(`start_date=${encodeURIComponent(startDate)}`);
+  if (endDate) params.push(`end_date=${encodeURIComponent(endDate)}`);
+  const qs = params.length ? `?${params.join('&')}` : '';
+  window.location.href = `/monitoring/${userId}${qs}`;
+}
+
+function clearDateRange() {
+  const userId = {{ selected_user.id if selected_user else 'null' }};
+  if (!userId) return;
+  const item = document.getElementById('itemFilter').value;
+  const params = [];
+  if (item) params.push(`item=${encodeURIComponent(item)}`);
+  const qs = params.length ? `?${params.join('&')}` : '';
+  window.location.href = `/monitoring/${userId}${qs}`;
+}
+
+// Search user functionality
+document.getElementById('searchUser').addEventListener('input', function() {
+  const searchTerm = this.value.toLowerCase();
+  const userItems = document.querySelectorAll('.user-item');
+  const noResults = document.getElementById('noResults');
+  let visibleCount = 0;
+  
+  userItems.forEach(function(item) {
+    const name = item.dataset.name;
+    const employeeId = item.dataset.employeeId;
+    const dept = item.dataset.dept;
+    
+    if (name.includes(searchTerm) || employeeId.includes(searchTerm) || dept.includes(searchTerm)) {
+      item.style.display = '';
+      visibleCount++;
+    } else {
+      item.style.display = 'none';
+    }
+  });
+  
+  noResults.style.display = visibleCount === 0 ? 'block' : 'none';
+});
+
+// User item click navigation (but not when clicking favorite button)
+document.querySelectorAll('.user-item').forEach(item => {
+  item.addEventListener('click', function(e) {
+    // Don't navigate if clicking the favorite button
+    if (e.target.closest('.favorite-btn')) {
+      return;
+    }
+    const url = this.dataset.url;
+    if (url) {
+      window.location.href = url;
+    }
+  });
+});
+
+// Toggle favorite functionality
+function toggleFavorite(event, userId) {
+  event.preventDefault();
+  event.stopPropagation();
+  
+  console.log('Toggle favorite for user:', userId);
+  
+  const btn = event.currentTarget;
+  const icon = btn.querySelector('i');
+  const currentFav = btn.dataset.isFavorite === 'true';
+  
+  console.log('Current favorite status:', currentFav);
+  
+  fetch(`/api/users/${userId}/toggle-favorite`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    credentials: 'same-origin'
+  })
+  .then(response => {
+    console.log('Response status:', response.status);
+    return response.json();
+  })
+  .then(data => {
+    console.log('Response data:', data);
+    
+    if (data.success) {
+      // Update button state
+      btn.dataset.isFavorite = String(data.is_favorite);
+      btn.title = data.is_favorite ? 'Remove from favorites' : 'Add to favorites';
+      
+      // Update button icon
+      if (data.is_favorite) {
+        icon.className = 'bi bi-star-fill';
+      } else {
+        icon.className = 'bi bi-star';
+      }
+      
+      // Update user name star badge
+      const userItem = btn.closest('.user-item');
+      const nameHeader = userItem.querySelector('h6');
+      
+      // Remove existing star if any
+      const existingStars = nameHeader.querySelectorAll('i.text-warning');
+      existingStars.forEach(star => {
+        if (star.classList.contains('bi-star-fill') && star !== icon) {
+          star.previousSibling?.remove(); // Remove space before star
+          star.remove();
+        }
+      });
+      
+      // Add new star if favorited
+      if (data.is_favorite) {
+        const starBadge = document.createElement('i');
+        starBadge.className = 'bi bi-star-fill text-warning';
+        starBadge.title = 'Favorite';
+        nameHeader.appendChild(document.createTextNode(' '));
+        nameHeader.appendChild(starBadge);
+      }
+      
+      // Re-sort the list (favorites first)
+      setTimeout(() => {
+        const userList = document.getElementById('userList');
+        const items = Array.from(userList.querySelectorAll('.user-item'));
+        
+        items.sort((a, b) => {
+          const aBtn = a.querySelector('.favorite-btn');
+          const bBtn = b.querySelector('.favorite-btn');
+          const aFav = aBtn ? aBtn.dataset.isFavorite === 'true' : false;
+          const bFav = bBtn ? bBtn.dataset.isFavorite === 'true' : false;
+          
+          if (aFav && !bFav) return -1;
+          if (!aFav && bFav) return 1;
+          
+          // If same favorite status, sort by name
+          const aName = a.dataset.name || '';
+          const bName = b.dataset.name || '';
+          return aName.localeCompare(bName);
+        });
+        
+        // Clear and re-append sorted items
+        userList.innerHTML = '';
+        items.forEach(item => {
+          userList.appendChild(item);
+          
+          // Re-attach click event listener for navigation
+          item.addEventListener('click', function(e) {
+            if (e.target.closest('.favorite-btn')) {
+              return;
+            }
+            const url = this.dataset.url;
+            if (url) {
+              window.location.href = url;
+            }
+          });
+        });
+        
+        console.log('List re-sorted');
+      }, 100);
+      
+    } else {
+      console.error('Toggle failed:', data.message);
+      alert('Error: ' + data.message);
+    }
+  })
+  .catch(error => {
+    console.error('Fetch error:', error);
+    alert('Failed to toggle favorite. Check console for details.');
+  });
+}
+</script>
+
+<!-- Report Detail Modal -->
+<div class="modal fade" id="reportDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header bg-gradient text-white" id="detail-modal-header">
+        <h5 class="modal-title"><i class="bi bi-file-text"></i> Report Details</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="row g-3">
+          <div class="col-md-6">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-clock"></i> Time</label>
+              <div class="detail-value" id="detail-time"></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-tag"></i> Category</label>
+              <div class="detail-value" id="detail-category"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-bookmark"></i> Title</label>
+              <div class="detail-value" id="detail-title"></div>
+            </div>
+          </div>
+          <div class="col-12">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-card-text"></i> Notes</label>
+              <div class="detail-value" id="detail-notes"></div>
+            </div>
+          </div>
+          <div class="col-md-4" id="detail-item-container" style="display: none;">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-box"></i> Item Name</label>
+              <div class="detail-value" id="detail-item"></div>
+            </div>
+          </div>
+          <div class="col-md-4" id="detail-part-container" style="display: none;">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-upc"></i> Part Number</label>
+              <div class="detail-value" id="detail-part"></div>
+            </div>
+          </div>
+          <div class="col-md-4" id="detail-customer-container" style="display: none;">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-person"></i> Customer</label>
+              <div class="detail-value" id="detail-customer"></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-person-badge"></i> Created By</label>
+              <div class="detail-value" id="detail-creator"></div>
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="detail-card">
+              <label class="detail-label"><i class="bi bi-calendar-event"></i> Created At</label>
+              <div class="detail-value" id="detail-created"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<style>
+/* Report Detail Modal Styles */
+.bg-gradient {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+}
+
+.detail-card {
+  background: #f8f9fa;
+  border-left: 3px solid #667eea;
+  padding: 12px 16px;
+  border-radius: 6px;
+  min-height: 60px;
+}
+
+.detail-label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #6c757d;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 6px;
+  display: block;
+}
+
+.detail-value {
+  font-size: 1rem;
+  color: #212529;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+.detail-value:empty:after {
+  content: '-';
+  color: #adb5bd;
+}
+
+.report-row:hover {
+  background-color: #f8f9fa;
+}
+</style>
+
+<script>
+// Report row click handler for monitoring page
+const monitoringTbody = document.getElementById('monitoring-reports-tbody');
+if (monitoringTbody) {
+  monitoringTbody.addEventListener('click', async function(e) {
+    const row = e.target.closest('tr.report-row');
+    if (!row) return;
+    
+    const reportId = row.dataset.reportId;
+    if (!reportId) return;
+    
+    try {
+      const response = await fetch(`/api/report/${reportId}`);
+      const data = await response.json();
+      
+      if (data.success) {
+        const report = data.report;
+        
+        // Set header gradient color based on category
+        const headerEl = document.getElementById('detail-modal-header');
+        const categoryColors = {
+          'Quality': 'linear-gradient(135deg, #28a745 0%, #20c997 100%)',
+          'Cost': 'linear-gradient(135deg, #ffc107 0%, #fd7e14 100%)',
+          'Delivery': 'linear-gradient(135deg, #dc3545 0%, #e83e8c 100%)',
+          'Safety': 'linear-gradient(135deg, #17a2b8 0%, #007bff 100%)',
+          'Development': 'linear-gradient(135deg, #17a2b8 0%, #007bff 100%)',
+          'Productivity': 'linear-gradient(135deg, #17a2b8 0%, #007bff 100%)'
+        };
+        headerEl.style.background = categoryColors[report.category] || 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)';
+        
+        // Populate modal fields
+        document.getElementById('detail-time').textContent = report.time;
+        document.getElementById('detail-category').innerHTML = `<span class="badge bg-secondary">${report.category}</span>`;
+        document.getElementById('detail-title').textContent = report.title;
+        document.getElementById('detail-notes').textContent = report.notes || '-';
+        document.getElementById('detail-creator').textContent = `${report.user_name} (${report.user_employee_id})`;
+        document.getElementById('detail-created').textContent = report.created_at;
+        
+        // Optional fields - show/hide containers
+        const itemContainer = document.getElementById('detail-item-container');
+        const partContainer = document.getElementById('detail-part-container');
+        const customerContainer = document.getElementById('detail-customer-container');
+        
+        if (report.item_name) {
+          document.getElementById('detail-item').textContent = report.item_name;
+          itemContainer.style.display = 'block';
+        } else {
+          itemContainer.style.display = 'none';
+        }
+        
+        if (report.part_number) {
+          document.getElementById('detail-part').textContent = report.part_number;
+          partContainer.style.display = 'block';
+        } else {
+          partContainer.style.display = 'none';
+        }
+        
+        if (report.customer) {
+          document.getElementById('detail-customer').textContent = report.customer;
+          customerContainer.style.display = 'block';
+        } else {
+          customerContainer.style.display = 'none';
+        }
+        
+        // Show modal
+        const modal = new bootstrap.Modal(document.getElementById('reportDetailModal'));
+        modal.show();
+      }
+    } catch (error) {
+      console.error('Error fetching report details:', error);
+    }
+  });
+}
+</script>
+
+{% endblock %}

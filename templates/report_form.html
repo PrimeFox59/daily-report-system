@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block title %}New Report - Daily Report System{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-10">
+    <div class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="bi bi-file-earmark-plus"></i> Create New Report</h4>
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          {{ form.hidden_tag() }}
+          <div class="row">
+            <div class="col-md-6 mb-3">
+              {{ form.time.label(class="form-label") }}
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-clock"></i></span>
+                {{ form.time(class="form-control", placeholder="e.g., 07:00") }}
+              </div>
+              <small class="form-text text-muted">Format: HH:MM (e.g., 07:00, 16:20)</small>
+            </div>
+            <div class="col-md-6 mb-3">
+              {{ form.category.label(class="form-label") }}
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-tag"></i></span>
+                {{ form.category(class="form-select") }}
+              </div>
+            </div>
+          </div>
+          
+          <div class="mb-3">
+            {{ form.title.label(class="form-label") }}
+            <div class="input-group">
+              <span class="input-group-text"><i class="bi bi-chat-left-text"></i></span>
+              {{ form.title(class="form-control", placeholder="Brief description of the activity") }}
+            </div>
+          </div>
+
+          <div class="mb-3">
+            {{ form.notes.label(class="form-label") }}
+            {{ form.notes(class="form-control", rows=5, placeholder="Detailed notes about what was done, issues found, actions taken, etc.") }}
+          </div>
+
+          <hr class="my-4">
+          <h5 class="mb-3"><i class="bi bi-info-circle"></i> Additional Information (Optional)</h5>
+
+          <div class="row">
+            <div class="col-md-4 mb-3">
+              {{ form.item_name.label(class="form-label") }}
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-box"></i></span>
+                {{ form.item_name(class="form-control", placeholder="Item name") }}
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              {{ form.part_number.label(class="form-label") }}
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-upc"></i></span>
+                {{ form.part_number(class="form-control", placeholder="Part number") }}
+              </div>
+            </div>
+            <div class="col-md-4 mb-3">
+              {{ form.customer.label(class="form-label") }}
+              <div class="input-group">
+                <span class="input-group-text"><i class="bi bi-person"></i></span>
+                {{ form.customer(class="form-control", placeholder="Customer name") }}
+              </div>
+            </div>
+          </div>
+
+          <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg">
+              <i class="bi bi-x-circle"></i> Cancel
+            </a>
+            {{ form.submit(class="btn btn-primary btn-lg") }}
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

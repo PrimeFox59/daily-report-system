@@ -1,0 +1,174 @@
+{% extends 'base.html' %}
+{% block title %}Settings - Daily Report System{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-8">
+    <div class="card shadow">
+      <div class="card-header bg-primary text-white">
+        <h4 class="mb-0"><i class="bi bi-gear"></i> Profile Settings</h4>
+      </div>
+      <div class="card-body p-4">
+        <form method="post">
+          {{ form.hidden_tag() }}
+          
+          <div class="mb-4">
+            <h5 class="border-bottom pb-2"><i class="bi bi-person"></i> Personal Information</h5>
+            <div class="mb-3">
+              {{ form.name.label(class="form-label") }}
+              {{ form.name(class="form-control form-control-lg") }}
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h5 class="border-bottom pb-2"><i class="bi bi-briefcase"></i> Work Information</h5>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.department.label(class="form-label") }}
+                {{ form.department(class="form-control", placeholder="e.g., Production") }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.section.label(class="form-label") }}
+                {{ form.section(class="form-control", placeholder="e.g., Line 1") }}
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.job.label(class="form-label") }}
+                {{ form.job(class="form-control", placeholder="e.g., Operator") }}
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.shift.label(class="form-label") }}
+                {{ form.shift(class="form-select") }}
+              </div>
+            </div>
+          </div>
+
+          <div class="mb-4">
+            <h5 class="border-bottom pb-2"><i class="bi bi-shield-lock"></i> Change Password</h5>
+            <div class="alert alert-info">
+              <i class="bi bi-info-circle"></i> Leave password fields empty if you don't want to change your password.
+            </div>
+            <div class="mb-3">
+              {{ form.current_password.label(class="form-label") }}
+              <div class="input-group">
+                {{ form.current_password(class="form-control", placeholder="Enter current password", id="current_password") }}
+                <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('current_password', this)">
+                  <i class="bi bi-eye"></i>
+                </button>
+              </div>
+            </div>
+            <div class="row">
+              <div class="col-md-6 mb-3">
+                {{ form.new_password.label(class="form-label") }}
+                <div class="input-group">
+                  {{ form.new_password(class="form-control", placeholder="Enter new password", id="new_password") }}
+                  <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('new_password', this)">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+                <div id="password-strength" class="mt-2" style="display: none;">
+                  <small class="text-muted">Password strength:</small>
+                  <div class="progress" style="height: 5px;">
+                    <div id="strength-bar" class="progress-bar" role="progressbar" style="width: 0%"></div>
+                  </div>
+                  <small id="strength-text" class="text-muted"></small>
+                </div>
+              </div>
+              <div class="col-md-6 mb-3">
+                {{ form.confirm_password.label(class="form-label") }}
+                <div class="input-group">
+                  {{ form.confirm_password(class="form-control", placeholder="Confirm new password", id="confirm_password") }}
+                  <button class="btn btn-outline-secondary" type="button" onclick="togglePassword('confirm_password', this)">
+                    <i class="bi bi-eye"></i>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <script>
+          function togglePassword(fieldId, btn) {
+            const field = document.getElementById(fieldId);
+            const icon = btn.querySelector('i');
+            if (field.type === 'password') {
+              field.type = 'text';
+              icon.classList.remove('bi-eye');
+              icon.classList.add('bi-eye-slash');
+            } else {
+              field.type = 'password';
+              icon.classList.remove('bi-eye-slash');
+              icon.classList.add('bi-eye');
+            }
+          }
+
+          // Password strength checker
+          document.getElementById('new_password').addEventListener('input', function() {
+            const password = this.value;
+            const strengthDiv = document.getElementById('password-strength');
+            const strengthBar = document.getElementById('strength-bar');
+            const strengthText = document.getElementById('strength-text');
+            
+            if (password.length === 0) {
+              strengthDiv.style.display = 'none';
+              return;
+            }
+            
+            strengthDiv.style.display = 'block';
+            
+            let strength = 0;
+            if (password.length >= 8) strength += 25;
+            if (password.match(/[a-z]/) && password.match(/[A-Z]/)) strength += 25;
+            if (password.match(/[0-9]/)) strength += 25;
+            if (password.match(/[^a-zA-Z0-9]/)) strength += 25;
+            
+            strengthBar.style.width = strength + '%';
+            
+            if (strength <= 25) {
+              strengthBar.className = 'progress-bar bg-danger';
+              strengthText.textContent = 'Weak';
+              strengthText.className = 'text-danger';
+            } else if (strength <= 50) {
+              strengthBar.className = 'progress-bar bg-warning';
+              strengthText.textContent = 'Fair';
+              strengthText.className = 'text-warning';
+            } else if (strength <= 75) {
+              strengthBar.className = 'progress-bar bg-info';
+              strengthText.textContent = 'Good';
+              strengthText.className = 'text-info';
+            } else {
+              strengthBar.className = 'progress-bar bg-success';
+              strengthText.textContent = 'Strong';
+              strengthText.className = 'text-success';
+            }
+          });
+          </script>
+
+          <div class="d-grid gap-2 d-md-flex justify-content-md-between mt-4">
+            <a href="{{ url_for('dashboard') }}" class="btn btn-secondary btn-lg">
+              <i class="bi bi-arrow-left"></i> Back to Dashboard
+            </a>
+            {{ form.submit(class="btn btn-success btn-lg") }}
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card shadow mt-4">
+      <div class="card-body">
+        <h5><i class="bi bi-info-circle"></i> Account Information</h5>
+        <hr>
+        <div class="row">
+          <div class="col-md-6">
+            <p><strong>Employee ID:</strong> {{ current_user.employee_id }}</p>
+            <p><strong>Department:</strong> {{ current_user.department or 'Not set' }}</p>
+          </div>
+          <div class="col-md-6">
+            <p><strong>Section:</strong> {{ current_user.section or 'Not set' }}</p>
+            <p><strong>Job:</strong> {{ current_user.job or 'Not set' }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

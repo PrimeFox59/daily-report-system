@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% block title %}User Management - Daily Report System{% endblock %}
+{% block content %}
+<div class="row mb-4">
+  <div class="col">
+    <h1 class="display-6"><i class="bi bi-people"></i> User Management</h1>
+    <p class="text-muted">Manage all users in the system</p>
+  </div>
+</div>
+
+<!-- Search Bar -->
+<div class="row mb-4">
+  <div class="col-md-6">
+    <form method="get" action="{{ url_for('admin_users') }}">
+      <div class="input-group">
+        <span class="input-group-text"><i class="bi bi-search"></i></span>
+        <input type="text" name="search" class="form-control" placeholder="Search by name, ID, or department..." value="{{ search }}">
+        <button class="btn btn-primary" type="submit">Search</button>
+        {% if search %}
+        <a href="{{ url_for('admin_users') }}" class="btn btn-secondary">Clear</a>
+        {% endif %}
+      </div>
+    </form>
+  </div>
+  <div class="col-md-6 text-end">
+    <span class="badge bg-info fs-6">Total: {{ users|length }} users</span>
+  </div>
+</div>
+
+<!-- Users Table -->
+<div class="card shadow">
+  <div class="card-body p-0">
+    <div class="table-container" style="max-height: 600px; overflow-y: auto; position: relative;">
+      <table class="table table-hover table-sm mb-0">
+        <thead class="table-primary" style="position: sticky; top: 0; z-index: 10;">
+          <tr>
+            <th style="width: 80px;">ID</th>
+            <th style="width: 200px;">Name</th>
+            <th style="width: 180px;">Department</th>
+            <th style="width: 150px;">Section</th>
+            <th style="width: 150px;">Job</th>
+            <th style="width: 80px;">Shift</th>
+            <th style="width: 80px;">Role</th>
+            <th style="width: 70px;" class="text-center">Reports</th>
+            <th style="width: 100px;" class="text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for user in users %}
+          <tr id="user-row-{{ user.id }}" class="user-table-row">
+            <td><strong class="text-primary">{{ user.employee_id }}</strong></td>
+            <td>
+              <i class="bi bi-person-circle text-secondary"></i> 
+              <strong>{{ user.name }}</strong>
+              {% if user.id == current_user.id %}
+                <span class="badge bg-info ms-1" style="font-size: 0.7rem;">You</span>
+              {% endif %}
+            </td>
+            <td><small>{{ user.department or '-' }}</small></td>
+            <td><small>{{ user.section or '-' }}</small></td>
+            <td><small>{{ user.job or '-' }}</small></td>
+            <td><small>{{ user.shift or '-' }}</small></td>
+            <td>
+              {% if user.is_admin %}
+                <span class="badge bg-warning text-dark" style="font-size: 0.7rem;">Admin</span>
+              {% else %}
+                <span class="badge bg-secondary" style="font-size: 0.7rem;">User</span>
+              {% endif %}
+            </td>
+            <td class="text-center">
+              <span class="badge bg-primary">{{ user.reports|length }}</span>
+            </td>
+            <td class="text-center">
+              <div class="btn-group btn-group-sm" role="group">
+                <a href="{{ url_for('admin_edit_user', user_id=user.id) }}" 
+                   class="btn btn-outline-primary" 
+                   title="Edit User"
+                   data-bs-toggle="tooltip">
+                  <i class="bi bi-pencil"></i>
+                </a>
+                {% if user.id != current_user.id %}
+                <button onclick="deleteUser(this)" 
+                        data-user-id="{{ user.id }}"
+                        data-user-name="{{ user.name }}"
+                        class="btn btn-outline-danger" 
+                        title="Delete User"
+                        data-bs-toggle="tooltip">
+                  <i class="bi bi-trash"></i>
+                </button>
+                {% endif %}
+              </div>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  <div class="card-footer bg-light">
+    <div class="d-flex justify-content-between align-items-center">
+      <small class="text-muted">
+        <i class="bi bi-info-circle"></i> Showing {{ users|length }} user(s)
+      </small>
+      <small class="text-muted">
+        Scroll to view more users
+      </small>
+    </div>
+  </div>
+</div>
+
+<style>
+.table-container {
+  border: 1px solid #dee2e6;
+  border-radius: 0.25rem;
+}
+
+.table-container::-webkit-scrollbar {
+  width: 8px;
+}
+
+.table-container::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb {
+  background: #888;
+  border-radius: 4px;
+}
+
+.table-container::-webkit-scrollbar-thumb:hover {
+  background: #555;
+}
+
+.user-table-row {
+  transition: background-color 0.2s;
+}
+
+.user-table-row:hover {
+  background-color: #f8f9fa !important;
+}
+
+.table-primary th {
+  background-color: #0d6efd !important;
+  color: white !important;
+  border-bottom: 2px solid #0a58ca;
+  font-weight: 600;
+  font-size: 0.875rem;
+  padding: 0.75rem 0.5rem;
+}
+
+.table-sm td {
+  padding: 0.5rem;
+  vertical-align: middle;
+  font-size: 0.875rem;
+}
+</style>
+
+<script>
+// Initialize tooltips
+document.addEventListener('DOMContentLoaded', function() {
+  var tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+  var tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+    return new bootstrap.Tooltip(tooltipTriggerEl);
+  });
+});
+
+function deleteUser(button) {
+  const userId = button.getAttribute('data-user-id');
+  const userName = button.getAttribute('data-user-name');
+  
+  if (confirm(`Are you sure you want to delete user "${userName}"?\n\nThis will also delete all their reports. This action cannot be undone!`)) {
+    fetch(`/admin/users/${userId}/delete`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    })
+    .then(response => response.json())
+    .then(data => {
+      if (data.success) {
+        // Remove the row from table with animation
+        const row = document.getElementById(`user-row-${userId}`);
+        row.style.transition = 'opacity 0.3s';
+        row.style.opacity = '0';
+        setTimeout(() => row.remove(), 300);
+        
+        // Show success message
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-success alert-dismissible fade show';
+        alertDiv.innerHTML = `
+          <i class="bi bi-check-circle"></i> ${data.message}
+          <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.querySelector('main').insertBefore(alertDiv, document.querySelector('main').firstChild);
+        
+        // Update user count
+        setTimeout(() => {
+          location.reload();
+        }, 1500);
+      } else {
+        alert('Error: ' + data.message);
+      }
+    })
+    .catch(error => {
+      alert('Error deleting user: ' + error);
+    });
+  }
+}
+</script>
+
+{% endblock %}

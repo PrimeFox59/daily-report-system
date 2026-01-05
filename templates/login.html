@@ -1,0 +1,38 @@
+{% extends 'base.html' %}
+{% block title %}Login - Daily Report System{% endblock %}
+{% block content %}
+<div class="row justify-content-center">
+  <div class="col-md-5">
+    <div class="card shadow">
+      <div class="card-body p-5">
+        <div class="text-center mb-4">
+          <i class="bi bi-clipboard-data" style="font-size: 3rem; color: #0d6efd;"></i>
+          <h2 class="mt-3">Login</h2>
+          <p class="text-muted">Welcome back! Please login to your account.</p>
+        </div>
+        <form method="post">
+          {{ form.hidden_tag() }}
+          <div class="mb-3">
+            {{ form.employee_id.label(class="form-label") }}
+            {{ form.employee_id(class="form-control form-control-lg", placeholder="Enter your ID") }}
+          </div>
+          <div class="mb-3">
+            {{ form.password.label(class="form-label") }}
+            {{ form.password(class="form-control form-control-lg", placeholder="Enter your password") }}
+          </div>
+          {{ form.submit(class="btn btn-primary btn-lg w-100") }}
+        </form>
+        <hr class="my-4">
+        <div class="text-center">
+          <p class="mb-0">Don't have an account? <a href="{{ url_for('register') }}">Register here</a></p>
+        </div>
+        <div class="alert alert-info mt-3" role="alert">
+          <small><strong>Demo accounts:</strong><br>
+          344 / zzz<br>
+          368 / zzz</small>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
