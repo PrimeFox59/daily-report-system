@@ -77,19 +77,6 @@ class AuditLog(db.Model):
     actor = db.relationship('User', foreign_keys=[actor_id], lazy=True)
 
 
-class ChatMessage(db.Model):
-    id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=False)
-    recipient_id = db.Column(db.Integer, db.ForeignKey('user.id'), nullable=True)
-    content = db.Column(db.Text, nullable=True)
-    file_path = db.Column(db.String(255), nullable=True)
-    original_name = db.Column(db.String(255), nullable=True)
-    created_at = db.Column(db.DateTime, default=datetime.utcnow)
-
-    user = db.relationship('User', foreign_keys=[user_id], backref='chat_messages_sent', lazy=True)
-    recipient = db.relationship('User', foreign_keys=[recipient_id], backref='chat_messages_received', lazy=True)
-
-
 class ItemLibrary(db.Model):
     """Library of items with part numbers and customers for quick reporting"""
     id = db.Column(db.Integer, primary_key=True)

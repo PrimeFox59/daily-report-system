@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, login_required, logout_user, current_user
 from werkzeug.security import generate_password_hash, check_password_hash
 from forms import LoginForm, RegisterForm, ReportForm, SettingsForm, AdminEditUserForm
-from models import db, User, Report, ReportTemplate, Category, AuditLog, ChatMessage, ItemLibrary
+from models import db, User, Report, ReportTemplate, Category, AuditLog, ItemLibrary
 from datetime import datetime, timedelta
 from werkzeug.utils import secure_filename
 import os
@@ -23,7 +23,6 @@ def create_app():
     if database_url:
         # Use PostgreSQL from environment variable (Neon)
         app.config['SQLALCHEMY_DATABASE_URI'] = database_url
-        upload_folder = '/tmp/uploads/chat'  # Use /tmp for serverless
     else:
         # Detect if running on Vercel (serverless) - use /tmp for writable storage
         is_vercel = os.getenv('VERCEL') or os.getenv('VERCEL_ENV')
@@ -31,11 +30,9 @@ def create_app():
         if is_vercel:
             # Vercel: use /tmp (temporary, will reset on cold start)
             db_path = '/tmp/app.db'
-            upload_folder = '/tmp/uploads/chat'
         else:
             # Local: use instance folder
             db_path = 'sqlite:///app.db'
-            upload_folder = os.path.join(app.static_folder, 'uploads', 'chat')
         
         app.config['SQLALCHEMY_DATABASE_URI'] = f'sqlite:///{db_path}' if is_vercel else db_path
     
@@ -46,15 +43,6 @@ def create_app():
         'pool_pre_ping': True,
         'max_overflow': 30
     }
-    app.config['CHAT_UPLOAD_FOLDER'] = upload_folder
-    
-    # Create upload folder (only works in /tmp on Vercel)
-    try:
-        os.makedirs(app.config['CHAT_UPLOAD_FOLDER'], exist_ok=True)
-    except OSError:
-        # Fallback to /tmp if static folder is read-only
-        app.config['CHAT_UPLOAD_FOLDER'] = '/tmp/uploads/chat'
-        os.makedirs(app.config['CHAT_UPLOAD_FOLDER'], exist_ok=True)
 
     db.init_app(app)
     
@@ -111,14 +99,6 @@ def create_app():
                 
                 db.session.commit()
                 app.logger.info("Default users and categories created successfully!")
-            
-            # Lightweight schema fix-up for chat_message.recipient_id if db existed before update
-            inspector = db.inspect(db.engine)
-            if 'chat_message' in inspector.get_table_names():
-                cols = [c['name'] for c in inspector.get_columns('chat_message')]
-                if 'recipient_id' not in cols:
-                    with db.engine.begin() as conn:
-                        conn.execute(text('ALTER TABLE chat_message ADD COLUMN recipient_id INTEGER'))
     except Exception as e:
         app.logger.error(f"Database initialization error: {e}")
         # Continue anyway - will fail on first database access but at least app loads
@@ -126,15 +106,6 @@ def create_app():
     login_manager = LoginManager()
     login_manager.login_view = 'login'
     login_manager.init_app(app)
-
-    @app.context_processor
-    def inject_chat_users():
-        try:
-            if current_user.is_authenticated:
-                return {'chat_users': User.query.order_by(User.name).all()}
-        except Exception:
-            pass
-        return {'chat_users': []}
 
     def log_action(user_id, action, detail='', actor_id=None):
         """Persist audit log without blocking main flow."""
@@ -957,150 +928,6 @@ def create_app():
         except Exception as e:
             db.session.rollback()
             return {'success': False, 'message': str(e)}, 500
-
-    def _chat_filter_query(recipient_id):
-        base = ChatMessage.query
-        if recipient_id:
-            # Direct chat: messages where current_user is sender or recipient with that user
-            base = base.filter(
-                ((ChatMessage.user_id == current_user.id) & (ChatMessage.recipient_id == recipient_id)) |
-                ((ChatMessage.user_id == recipient_id) & (ChatMessage.recipient_id == current_user.id))
-            )
-        else:
-            # Group chat
-            base = base.filter(ChatMessage.recipient_id.is_(None))
-        return base
-
-    def _serialize_msg(m):
-        def _is_image(name):
-            if not name:
-                return False
-            lower = name.lower()
-            return lower.endswith(('.png', '.jpg', '.jpeg', '.gif', '.webp'))
-        return {
-            'id': m.id,
-            'user_name': m.user.name if m.user else 'Unknown',
-            'user_id': m.user_id,
-            'recipient_id': m.recipient_id,
-            'content': m.content or '',
-            'file_url': url_for('static', filename=f"uploads/chat/{os.path.basename(m.file_path)}") if m.file_path else None,
-            'file_name': m.original_name,
-            'is_image': _is_image(m.original_name),
-            'created_at': (m.created_at + timedelta(hours=7)).strftime('%Y-%m-%d %H:%M:%S'),
-            'created_ts': m.created_at.timestamp()
-        }
-
-    @app.route('/api/chat/messages')
-    @login_required
-    def chat_messages():
-        since_ts = request.args.get('since', type=float)
-        recipient_id = request.args.get('recipient_id', type=int)
-        query = _chat_filter_query(recipient_id)
-        if since_ts:
-            try:
-                since_dt = datetime.utcfromtimestamp(since_ts)
-                query = query.filter(ChatMessage.created_at > since_dt)
-            except Exception:
-                pass
-        messages = query.order_by(ChatMessage.created_at.asc()).limit(200).all()
-        return jsonify([_serialize_msg(m) for m in messages])
-
-    @app.route('/api/chat/stream')
-    @login_required
-    def chat_stream():
-        recipient_id = request.args.get('recipient_id', type=int)
-        last_id = request.args.get('last_id', type=int, default=0)
-
-        def event_stream():
-            nonlocal last_id
-            try:
-                # send initial backlog
-                initial = _chat_filter_query(recipient_id).order_by(ChatMessage.id.desc()).limit(50).all()[::-1]
-                for m in initial:
-                    last_id = max(last_id, m.id)
-                    yield f"data: {json.dumps(_serialize_msg(m))}\n\n"
-                
-                # keep streaming new messages
-                while True:
-                    try:
-                        new_msgs = _chat_filter_query(recipient_id).filter(ChatMessage.id > last_id).order_by(ChatMessage.id.asc()).all()
-                        if new_msgs:
-                            for m in new_msgs:
-                                last_id = m.id
-                                yield f"data: {json.dumps(_serialize_msg(m))}\n\n"
-                        
-                        # Clean up session after each query
-                        db.session.expire_all()
-                        time.sleep(2)
-                    except GeneratorExit:
-                        # Client disconnected
-                        break
-                    except Exception as e:
-                        app.logger.error(f"Stream error: {e}")
-                        break
-            finally:
-                # Cleanup database session
-                db.session.remove()
-
-        return Response(stream_with_context(event_stream()), mimetype='text/event-stream')
-
-    @app.route('/api/chat/send', methods=['POST'])
-    @login_required
-    def chat_send():
-        content = request.form.get('content', '').strip()
-        file = request.files.get('file')
-        recipient_id = request.form.get('recipient_id', type=int)
-        if recipient_id == current_user.id:
-            recipient_id = None  # avoid self-target loops
-        if not content and not file:
-            return jsonify({'success': False, 'message': 'Message or file required'}), 400
-
-        saved_path = None
-        original_name = None
-        if file and file.filename:
-            original_name = file.filename
-            filename = secure_filename(f"{datetime.utcnow().strftime('%Y%m%d%H%M%S%f')}_{file.filename}")
-            saved_path = os.path.join(app.config['CHAT_UPLOAD_FOLDER'], filename)
-            file.save(saved_path)
-
-        msg = ChatMessage(
-            user_id=current_user.id,
-            recipient_id=recipient_id,
-            content=content if content else None,
-            file_path=saved_path,
-            original_name=original_name
-        )
-        db.session.add(msg)
-        db.session.commit()
-        return jsonify({'success': True})
-
-    @app.route('/api/chat/delete/<int:msg_id>', methods=['DELETE'])
-    @login_required
-    def chat_delete(msg_id):
-        """Delete a chat message (only within 1 hour and by sender)"""
-        msg = ChatMessage.query.get_or_404(msg_id)
-        
-        # Check if user is the sender
-        if msg.user_id != current_user.id:
-            return jsonify({'success': False, 'message': 'You can only delete your own messages'}), 403
-        
-        # Check if message is less than 1 hour old
-        time_diff = datetime.utcnow() - msg.created_at
-        if time_diff.total_seconds() > 3600:  # 3600 seconds = 1 hour
-            return jsonify({'success': False, 'message': 'Messages can only be deleted within 1 hour of sending'}), 400
-        
-        # Delete file if exists
-        if msg.file_path and os.path.exists(msg.file_path):
-            try:
-                os.remove(msg.file_path)
-            except Exception as e:
-                print(f"Error deleting file: {e}")
-        
-        # Delete message from database
-        db.session.delete(msg)
-        db.session.commit()
-        
-        return jsonify({'success': True, 'message': 'Message deleted successfully'})
 
     # Admin Category Management Routes
     @app.route('/admin/categories')
